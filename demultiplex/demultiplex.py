@@ -186,7 +186,7 @@ def demultiplex(
     queue.flush()
 
 
-def compare_paired_assignation(records, mismatch, indel_score, path, filenames, queue, list_id_barcode, file_format, dict_id_count_R1, dict_id_count_R2, list_overall_stats):
+def compare_paired_assignation(records, mismatch, indel_score, path, filenames, queue, list_id_barcode, file_format, dict_id_count_R1, dict_id_count_R2, list_overall_stats, list_incomptag_pair):
     """
     """
     # sametag R1 and R2 have same tag
@@ -207,6 +207,7 @@ def compare_paired_assignation(records, mismatch, indel_score, path, filenames, 
     save_tag_used = ""
     save_tagr2_used = ""
     last_tag_used = ""
+
     for id, barcode in list_id_barcode:
         
         # R1
@@ -258,8 +259,9 @@ def compare_paired_assignation(records, mismatch, indel_score, path, filenames, 
             dict_id_count_R1[save_tag_used][3] =  dict_id_count_R1[save_tag_used][3] + 1 
             dict_id_count_R2[save_tagr2_used][3] =  dict_id_count_R2[save_tagr2_used][3] + 1
             list_overall_stats[3] +=1
-            
-    return dict_id_count_R1, dict_id_count_R2, list_overall_stats
+            list_incomptag_pair.append([save_tag_used, save_tagr2_used])
+
+    return dict_id_count_R1, dict_id_count_R2, list_overall_stats, list_incomptag_pair
 
 def match(input_handles, barcodes_handle, mismatch, use_edit, path='.'):
     """Demultiplex a list of NGS data files.
@@ -305,6 +307,7 @@ def match(input_handles, barcodes_handle, mismatch, use_edit, path='.'):
     overall_count_onetag = 0
     overall_count_sametag = 0
     overall_count_incomptag = 0
+    list_incomptag_pair = []
     list_overall_stats = [overall_count_notag, overall_count_onetag, overall_count_sametag, overall_count_incomptag]
 
     while True:
@@ -313,7 +316,7 @@ def match(input_handles, barcodes_handle, mismatch, use_edit, path='.'):
             break
         if len(records)==2:
 
-            dict_id_count_R1, dict_id_count_R2, list_overall_stats= compare_paired_assignation(records, mismatch, indel_score, path, filenames, queue, list_id_barcode, file_format, dict_id_count_R1, dict_id_count_R2, list_overall_stats)
+            dict_id_count_R1, dict_id_count_R2, list_overall_stats, list_incomptag_pair= compare_paired_assignation(records, mismatch, indel_score, path, filenames, queue, list_id_barcode, file_format, dict_id_count_R1, dict_id_count_R2, list_overall_stats, list_incomptag_pair)
         else:
             reference = str(records[0].seq.upper())
             # TODO make reverse search optionnal 
@@ -339,7 +342,11 @@ def match(input_handles, barcodes_handle, mismatch, use_edit, path='.'):
 
             if not found:
                 _write(default_handles, records, file_format)
-
+    stat_path1 = path + '/stat_incomptag_pair.csv'
+    with open(stat_path1, 'w') as f:
+        f.write('R1; R2 \n')
+        for el in list_incomptag_pair:
+            f.write("%s;%s \n"%(el[0], el[1]))
     # print(dict_id_count_R1, dict_id_count_R2, list_overall_stats)
     result_path1 = path + '/result_stat_R1.csv'
     result_path2 = path + '/result_stat_R2.csv'
